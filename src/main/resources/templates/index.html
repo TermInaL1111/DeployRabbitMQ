@@ -1,0 +1,42 @@
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>查询成绩</title>
+</head>
+<body>
+<h3>查询学生成绩</h3>
+<form th:action="@{/index/__}" method="get" th:object="${user}"
+      onsubmit="this.action='/index/' + this.name.value;">
+    姓名：<input type="text" name="name"/>
+    <button type="submit">查询</button>
+</form>
+
+
+<hr>
+<p>姓名：<span th:text="${user.userName}">无</span></p>
+<p>成绩：<span th:text="${user.grade}">无</span></p>
+</body>
+</html>
+
+
+
+
+<!--<!DOCTYPEhtml>-->
+<!--<html lang="en" xmlns:th="http://www.thymeleaf.org">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <title>Title</title>-->
+<!--    </script>-->
+<!--    </head>-->
+<!--<body>-->
+
+<!--<hr>-->
+<!--姓名：<label th:text="${user.userName}">无</label>-->
+<!--&lt;!&ndash; HTML内联&ndash;&gt;&ndash;&gt;-->
+<!--<p th:inline="text">成绩：[[${user.grade}]]</p>-->
+<!--<hr>-->
+<!--</body>-->
+<!--</html>-->
+<!--前端输入姓名-->
