@@ -55,12 +55,20 @@
             <scope>test</scope>
         </dependency>
 
-<!--        Spring Boot 默认使用 Thymeleaf 或 模板引擎 时，模板文件应该在：-->
-<!--        使用 Thymeleaf，需要依赖：-->
+<!--&lt;!&ndash;        Spring Boot 默认使用 Thymeleaf 或 模板引擎 时，模板文件应该在：&ndash;&gt;-->
+<!--&lt;!&ndash;        使用 Thymeleaf，需要依赖：&ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-starter-thymeleaf</artifactId>-->
+<!--        </dependency>-->
+
+<!--        引入事件总线依赖-->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.2-jre</version>
         </dependency>
+
 
     </dependencies>
 
@@ -77,6 +85,9 @@
                             <artifactId>lombok</artifactId>
                         </path>
                     </annotationProcessorPaths>
+                    <source>21</source>
+                    <target>21</target>
+                    <compilerArgs>--enable-preview</compilerArgs>
                 </configuration>
             </plugin>
             <plugin>

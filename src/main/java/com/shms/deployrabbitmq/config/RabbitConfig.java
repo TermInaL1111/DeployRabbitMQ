@@ -17,4 +17,6 @@ public class RabbitConfig {
         template.setMessageConverter(new Jackson2JsonMessageConverter());
         return template;
     }
+
+
 }
