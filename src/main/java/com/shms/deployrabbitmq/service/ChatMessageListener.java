@@ -97,26 +97,25 @@ public class ChatMessageListener {
         statusContainer = new SimpleMessageListenerContainer();
         statusContainer.setConnectionFactory(connectionFactory);
 
-        String statusQueue = "queue_user_status_" + userId; // 动态队列
+        String statusQueue = "queue_user_status_" + userId;
         statusContainer.setQueueNames(statusQueue);
 
-        statusContainer.setMessageListener(message -> handleUserStatusMessage(message));
+        statusContainer.setMessageListener(message -> {
+            try {
+                ChatMessage msg = objectMapper.readValue(message.getBody(), ChatMessage.class);
+                log.info("收到用户状态: {}", msg);
+
+                // 发布事件给 UI
+                eventBusManager.post(new UserStatusEvent(msg));
+            } catch (Exception e) {
+                log.error("处理用户状态消息失败", e);
+            }
+        });
 
         statusContainer.start();
         log.info("用户状态监听启动完成, userId={}", userId);
     }
 
-    private void handleUserStatusMessage(org.springframework.amqp.core.Message message) {
-        try {
-            ChatMessage msg = objectMapper.readValue(message.getBody(), ChatMessage.class);
-            log.info("收到用户状态: {}", msg);
-
-            // 发布事件给 UI
-            eventBusManager.post(new UserStatusEvent(msg));
-        } catch (Exception e) {
-            log.error("处理用户状态消息失败", e);
-        }
-    }
 
     /**
      * 停止所有监听

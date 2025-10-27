@@ -4,7 +4,9 @@ package com.shms.deployrabbitmq;
 import com.shms.deployrabbitmq.service.ChatMessageListener;
 import com.shms.deployrabbitmq.service.ChatService;
 import com.shms.deployrabbitmq.service.EventBusManager;
-import com.shms.deployrabbitmq.ui.ChatFrame;
+
+
+import com.shms.deployrabbitmq.ui.LoginFrame;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -33,7 +35,8 @@ public class DeployRabbitMqApplication implements CommandLineRunner {
     private EventBusManager eventBusManager;
      @Autowired
     private ChatMessageListener chatMessageListener;
-
+    @Autowired
+    private LoginFrame Frame1;
     public static void main(String[] args) {
         // 关闭 headless 模式，允许 Swing 窗口显示
         System.setProperty("java.awt.headless", "false");
@@ -42,15 +45,22 @@ public class DeployRabbitMqApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // 设置系统 LookAndFeel
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {}
-
-        // 启动 Swing UI
         SwingUtilities.invokeLater(() -> {
-            ChatFrame chatFrame = new ChatFrame(eventBusManager,chatService,chatMessageListener);
-            chatFrame.setVisible(true);
+            Frame1.setVisible(true);
         });
     }
+
+//    @Override
+//    public void run(String... args) {
+//        // 设置系统 LookAndFeel
+//        try {
+//            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+//        } catch (Exception ignored) {}
+//
+//        // 启动 Swing UI
+//        SwingUtilities.invokeLater(() -> {
+//            ChatFrame1 chatFrame = new ChatFrame1(eventBusManager,chatService,chatMessageListener);
+//            chatFrame.setVisible(true);
+//        });
+//    }
 }
