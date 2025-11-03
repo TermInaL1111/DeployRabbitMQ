@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.shms</groupId>
     <artifactId>DeployRabbitMQ</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>2.0</version>
     <name>DeployRabbitMQ</name>
     <description>DeployRabbitMQ</description>
     <url/>
@@ -74,6 +74,13 @@
             <artifactId>jackson-databind</artifactId>
             <version>2.15.2</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.java-websocket</groupId>
+            <artifactId>Java-WebSocket</artifactId>
+            <version>1.5.6</version>
+        </dependency>
+
 
     </dependencies>
 

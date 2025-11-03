@@ -4,12 +4,11 @@ package com.shms.deployrabbitmq.ui;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.eventbus.Subscribe;
-import com.shms.deployrabbitmq.Event.PrivateMessageEvent;
-import com.shms.deployrabbitmq.Event.UserStatusEvent;
+import com.shms.deployrabbitmq.Event.ReceiveMessageEvent;
 import com.shms.deployrabbitmq.pojo.ChatMessage;
 import com.shms.deployrabbitmq.pojo.Result;
 import com.shms.deployrabbitmq.pojo.User;
-import com.shms.deployrabbitmq.service.ChatMessageListener;
+
 import com.shms.deployrabbitmq.service.EventBusManager;
 import com.shms.deployrabbitmq.service.ChatService;
 import lombok.extern.slf4j.Slf4j;
@@ -30,16 +29,16 @@ public class MainFrame extends JFrame {
     private final DefaultListModel<String> userListModel;
     private final Map<String, ChatWindow> chatWindows = new HashMap<>(); // 管理已打开的聊天窗口
 
-    private final ChatMessageListener chatMessageListener;
+//    private final ChatMessageListener chatMessageListener;
 
     private boolean isLoggedOut = false; // 新增标志位
 
-    public MainFrame(String currentUser, EventBusManager eventBusManager, ChatService chatService,ChatMessageListener chatMessageListener) {
+    public MainFrame(String currentUser, EventBusManager eventBusManager, ChatService chatService) {
         this.currentUser = currentUser;
         this.eventBusManager = eventBusManager;
         this.chatService = chatService;
         this.userListModel = new DefaultListModel<>();
-        this.chatMessageListener = chatMessageListener;
+//        this.chatMessageListener = chatMessageListener;
 
         // 初始化用户列表(默认包含自己和all)
         initUserList();
@@ -130,55 +129,67 @@ public class MainFrame extends JFrame {
         chatWindow.toFront(); // 置顶
     }
 
-    // 处理用户状态事件(更新在线列表)
-    @Subscribe
-    public void onUserStatus(UserStatusEvent event) {
+//    //订阅
+@Subscribe
+public void handleChatMessage(ReceiveMessageEvent event) {
         ChatMessage msg = event.getMessage();
-        SwingUtilities.invokeLater(() -> { // UI操作需在EDT线程
-            if ("online".equals(msg.getContent()) && !userListModel.contains(msg.getSender())) {
-                userListModel.addElement(msg.getSender());
-            } else if ("offline".equals(msg.getContent())) {
-                userListModel.removeElement(msg.getSender());
-            }
-        });
-    }
-    @Subscribe
-    public void onPrivateMessage(PrivateMessageEvent event) {
-        ChatMessage msg = event.getMessage();
-        // 只处理发给当前用户的消息
-        if (msg.getReceiver().equals(currentUser)) {
-            String sender = msg.getSender();
-            SwingUtilities.invokeLater(() -> {
-                // 自动打开聊天窗口（如果未打开）
-                openChatWindow(sender);
-                // 将消息推送到对应窗口
-//                ChatWindow chatWindow = chatWindows.get(sender);
-//                if (chatWindow != null) {
-//                    chatWindow.handleMessage(msg);
-//                }
-            });
-        }
-    }
+        log.info("开始处理{}",msg);
+    SwingUtilities.invokeLater(() -> {
+        switch (msg.getType()) {
+            case "status": // 用户状态
+                if ("online".equals(msg.getContent()) && !userListModel.contains(msg.getSender())) {
+                    userListModel.addElement(msg.getSender());
+                } else if ("offline".equals(msg.getContent())) {
+                    userListModel.removeElement(msg.getSender());
+                }
+                break;
 
-        // 其他变量...
+            case "text": // 私聊
+                if (msg.getReceiver().equals(currentUser)) {
+                    openChatWindow(msg.getSender());
+                    ChatWindow chatWindow = chatWindows.get(msg.getSender());
+                    if (chatWindow != null) chatWindow.handleMessage(msg);
+                }
+                else if(msg.getReceiver().equals("all"))
+                {
+                    openChatWindow("all");
+                    ChatWindow chatWindow = chatWindows.get("all");
+                    if (chatWindow != null) chatWindow.handleMessage(msg);
+                }
+                break;
+
+//            case "group": // 群聊
+//                if (msg.getReceiver().equals("all") || msg.getReceiver().equals(currentUser)) {
+//                    openChatWindow(msg.getSender());
+//                    ChatWindow chatWindow = chatWindows.get(msg.getSender());
+//                    if (chatWindow != null) chatWindow.handleMessage(msg);
+//                }
+//                break;
+
+            default:
+                System.out.println("未知消息类型: " + msg.getType());
+        }
+    });
+}
+
+
 
         private void doLogout() {
             // 若已登出，直接返回，避免重复执行
             if (isLoggedOut) {
                 return;
             }
-
             try {
                 // 1. 标记为已登出
                 isLoggedOut = true;
 
                 // 2. 发送下线状态
-                chatService.sendOfflineStatus(currentUser, eventBusManager);
+//                chatService.sendOfflineStatus(currentUser, eventBusManager);
                 User user = new User();
                 user.setUsername(currentUser);
                 chatService.logout(user);
                 // 3. 停止消息监听器
-                chatMessageListener.stopAllListeners();
+//                chatMessageListener.stopAllListeners();
 
                 // 4. 注销事件总线（仅执行一次）
                 eventBusManager.unregister(this);
@@ -191,7 +202,7 @@ public class MainFrame extends JFrame {
 
                 // 6. 关闭当前主窗口，打开登录窗口
                 this.dispose(); // 调用dispose，但此时isLoggedOut为true，不会再次触发doLogout
-                LoginFrame loginFrame = new LoginFrame(eventBusManager, chatService, chatMessageListener);
+                LoginFrame loginFrame = new LoginFrame(eventBusManager, chatService);
                 loginFrame.setVisible(true);
 
                 log.info("用户 {} 已登出", currentUser);
@@ -211,6 +222,88 @@ public class MainFrame extends JFrame {
                 super.dispose(); // 已登出，直接关闭窗口
             }
         }
+//    @Subscribe
+//    public void handleWsEvent(WsEvent event) {
+//        SwingUtilities.invokeLater(() -> {
+//            switch (event.getType()) {
+//                case "open":
+//                    statusLabel.setText("✅ 已连接服务器");
+//                    connectBtn.setEnabled(false);
+//                    break;
+//
+//                case "close":
+//                    statusLabel.setText("🔴 连接关闭: " + event.getPayload());
+//                    connectBtn.setEnabled(true);
+//                    // 可以弹窗提示或尝试重连
+//                    int option = JOptionPane.showConfirmDialog(this,
+//                            "连接已断开，是否重连？", "连接断开", JOptionPane.YES_NO_OPTION);
+//                    if (option == JOptionPane.YES_OPTION) {
+//                        reconnectWebSocket();
+//                    }
+//                    break;
+//
+//                case "error":
+//                    statusLabel.setText("⚠ WebSocket 出错: " + event.getPayload());
+//                    // 记录日志
+//                    log.error("WebSocket 错误: {}", event.getPayload());
+//                    break;
+//
+//                default:
+//                    System.out.println("未知 WsEvent 类型: " + event.getType());
+//            }
+//        });
+//    }
+
+
+
+//    // 处理用户状态事件(更新在线列表)
+//    @Subscribe
+//    public void onUserStatus(UserStatusEvent event) {
+//        ChatMessage msg = event.getMessage();
+//        SwingUtilities.invokeLater(() -> { // UI操作需在EDT线程
+//            if ("online".equals(msg.getContent()) && !userListModel.contains(msg.getSender())) {
+//                userListModel.addElement(msg.getSender());
+//            } else if ("offline".equals(msg.getContent())) {
+//                userListModel.removeElement(msg.getSender());
+//            }
+//        });
+//    }
+//    @Subscribe
+//    public void onPrivateMessage(PrivateMessageEvent event) {
+//        ChatMessage msg = event.getMessage();
+//        // 只处理发给当前用户的消息
+//        if (msg.getReceiver().equals(currentUser)) {
+//            String sender = msg.getSender();
+//            SwingUtilities.invokeLater(() -> {
+//                // 自动打开聊天窗口（如果未打开）
+//                openChatWindow(sender);
+//                // 将消息推送到对应窗口
+//                ChatWindow chatWindow = chatWindows.get(sender);
+//                if (chatWindow != null) {
+//                    chatWindow.handleMessage(msg);
+//                }
+//            });
+//        }
+//    }
+//    @Subscribe
+//    public void onPublicMessage(PublicMessageEvent event) {
+//        ChatMessage msg = event.getMessage();
+//        // 群聊窗口才处理
+//        if (msg.getReceiver().equals(currentUser)) {
+//            String sender = msg.getSender();
+//            SwingUtilities.invokeLater(() -> {
+//                // 自动打开聊天窗口（如果未打开）
+//                openChatWindow(sender);
+//                // 将消息推送到对应窗口
+//                ChatWindow chatWindow = chatWindows.get(sender);
+//                if (chatWindow != null) {
+//                    chatWindow.handleMessage(msg);
+//                }
+//            });
+//        }
+//    }
+    // 其他变量...
+
 
 //    private void doLogout() {
 //        try {

@@ -1,7 +1,7 @@
 package com.shms.deployrabbitmq;
 
 
-import com.shms.deployrabbitmq.service.ChatMessageListener;
+//import com.shms.deployrabbitmq.service.ChatMessageListener;
 import com.shms.deployrabbitmq.service.ChatService;
 import com.shms.deployrabbitmq.service.EventBusManager;
 
@@ -33,8 +33,8 @@ public class DeployRabbitMqApplication implements CommandLineRunner {
     private ChatService chatService;
     @Autowired
     private EventBusManager eventBusManager;
-     @Autowired
-    private ChatMessageListener chatMessageListener;
+     //@Autowired
+   // private ChatMessageListener chatMessageListener;
     @Autowired
     private LoginFrame Frame1;
     public static void main(String[] args) {

@@ -1,9 +1,13 @@
 package com.shms.deployrabbitmq.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.eventbus.Subscribe;
 import com.shms.deployrabbitmq.Event.SendMessageEvent;
 import com.shms.deployrabbitmq.pojo.ChatMessage;
 import com.shms.deployrabbitmq.pojo.Result;
 import com.shms.deployrabbitmq.pojo.User;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,74 +38,70 @@ import java.util.UUID;
 @Slf4j
 public class ChatService {
 
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
+    private  ChatWebSocketClient webSocketClient;
+    private final EventBusManager eventBus;
 
-    public void sendPrivateMessage(ChatMessage msg) {
-        // 发送到私信交换机
-        rabbitTemplate.convertAndSend("chat_topic_exchange", "chat.private." + msg.getReceiver(), msg);
-        log.info("已发送消息给 {}: {}", msg.getReceiver(), msg.getContent());
+    public ChatService(EventBusManager eventBus) {
+        this.eventBus = eventBus;
+        this.eventBus.register(this); // 注册事件总线监听器
     }
-    public void ackMessage(String messageId) {
-        log.info("ACK 消息: {}", messageId);
-        // TODO: 可更新数据库状态
+    /** 登录成功后初始化 WebSocket 客户端 */
+    public void initWebSocketForUser(String username) throws Exception {
+        if (webSocketClient != null && !webSocketClient.isClosed()) {
+            webSocketClient.close();
+        }
+        webSocketClient = new ChatWebSocketClient(username, eventBus);
+        webSocketClient.connect(); // 异步连接
     }
-    //mq
-    // 发送上线状态
-    public void sendOnlineStatus(String username, EventBusManager eventBus) {
-        ChatMessage msg = createStatusMessage(username, "online");
-        eventBus.post(new SendMessageEvent(msg));
-    }
-
-    // 发送下线状态
-    public void sendOfflineStatus(String username, EventBusManager eventBus) {
-        ChatMessage msg = createStatusMessage(username, "offline");
-        eventBus.post(new SendMessageEvent(msg));
+    /** 发送消息给服务器（WebSocket） */
+    public void sendMessage(ChatMessage msg) {
+            webSocketClient.sendChatMessage(msg);
+            log.info("发送消息: {}", msg);
     }
 
-    // 创建状态消息
-    private ChatMessage createStatusMessage(String username, String status) {
-        ChatMessage msg = new ChatMessage();
-        msg.setMessageId(UUID.randomUUID().toString());
-        msg.setType("status");
-        msg.setSender(username);
-        msg.setReceiver("all");
-        msg.setContent(status);
-        msg.setTimestamp(System.currentTimeMillis());
-        return msg;
+    /** EventBus 监听发送事件 */
+    @Subscribe
+    public void handleSendMessageEvent(SendMessageEvent event) {
+        ChatMessage msg = event.getMessage();
+        sendMessage(msg); // 直接调用发送
     }
+
+
     @Value("${serverurl}")
     private String serverurl;
     private final RestTemplate restTemplate = new RestTemplate();
 
+
     // 测试服务器连接
-    public Result testConnection(String serverUrl, User user) {
+    public Result testConnection(User user) {
         return restTemplate.postForObject(serverurl + "test", user, Result.class);
     }
 
+
     // 登录
-    public Result login(String serverUrl, User user) {
+    public Result login(User user) {
         return restTemplate.postForObject(serverurl + "login", user, Result.class);
     }
 
     // 注册
-    public Result register(String serverUrl, User user) {
+    public Result register(User user) {
         return restTemplate.postForObject(serverurl + "register", user, Result.class);
     }
+
     //logout
-    public void logout(User  user){
-        restTemplate.postForObject(serverurl+"logout",user,Result.class);
+    public void logout(User user) {
+        restTemplate.postForObject(serverurl + "logout", user, Result.class);
     }
 
     // 上传文件
     public String uploadFile(File file) {
         try {
-            String Url = serverurl+ "upload"; // 实际应从配置获取
+            String Url = serverurl + "upload";
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("file", new FileSystemResource(file));
 
             Result result = restTemplate.postForObject(Url, body, Result.class);
-            return result.getCode()==1 ? result.getData().toString() : null;
+            return result.getCode() == 1 ? result.getData().toString() : null;
         } catch (Exception e) {
             return null;
         }
@@ -118,64 +118,12 @@ public class ChatService {
             }
         }
     }
+
     // 获取当前在线用户列表
     public Result getOnlineUsers() {
         return restTemplate.getForObject(serverurl + "online", Result.class);
     }
-    //此时RestTemplate无法识别data是List<String>，会默认将其解析为List<LinkedHashMap>
-    // //（因为 JSON 数组中的字符串会被错误映射），导致(List<String>) res.getData()转换失败。
-    // 在ChatService中添加方法
-//    public Result getOnlineUsers() {
-//        RestTemplate restTemplate = new RestTemplate();
-//        // 用ParameterizedTypeReference指定Result<List<String>>类型
-//        ResponseEntity response = restTemplate.exchange(
-//                serverurl + "/online",  // 后端获取在线用户的接口地址
-//                HttpMethod.GET,
-//                null,
-//                new ParameterizedTypeReference<Result<List<String>>>() {}
-//        );
-//        return response.getBody();
-//    }
-
-
 }
 
 
 
-//@Service
-//public class ChatService {
-//    @Autowired
-//    private RabbitTemplate rabbitTemplate;
-//
-//    // 群发消息
-//    public void sendToAll(ChatMessage msg) {
-//        rabbitTemplate.convertAndSend("chat_fanout_exchange", msg);
-//    }
-//
-//    // 私发消息
-//    public void sendToUser(ChatMessage msg) {
-//        // 路由键规则：chat.user.用户ID
-//        String routeKey = "chat.user." + msg.getReceiver();
-//        rabbitTemplate.convertAndSend("chat_topic_exchange", routeKey, msg);
-//    }
-//
-//    // 群发 上线 / 下线   目前
-//    public void sendUserStatus(ChatMessage msg) {
-//
-//        rabbitTemplate.convertAndSend("status_fanout_exchange", msg);
-//    }
-//
-//
-//    // 发送文件（文件转为字节数组）
-//    public void sendFile(String sender, String receiver, MultipartFile file) throws IOException {
-//        ChatMessage msg = new ChatMessage();
-//        msg.setType("file");
-//        msg.setSender(sender);
-//        msg.setReceiver(receiver);
-//        msg.setContent(file.getOriginalFilename());
-//        msg.setFileData(file.getBytes());
-//        msg.setTimestamp(System.currentTimeMillis());
-//        sendToUser(msg);
-//    }
-//
-//}

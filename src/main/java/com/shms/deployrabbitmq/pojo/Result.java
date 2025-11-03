@@ -4,6 +4,8 @@ import lombok.Data;
 
 //请求返回结果封装
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 //@Data
 //public class Result<T> {
@@ -28,6 +30,8 @@ import lombok.Data;
 //    }
 //}
 @Data
+@Getter
+@Setter
 public class Result {
 
     private Integer code;//编码 1,0 成功失败

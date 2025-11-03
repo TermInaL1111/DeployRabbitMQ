@@ -1,9 +1,6 @@
 package com.shms.deployrabbitmq.ui;
 
 
-import com.google.common.eventbus.Subscribe;
-import com.shms.deployrabbitmq.Event.PrivateMessageEvent;
-import com.shms.deployrabbitmq.Event.PublicMessageEvent;
 import com.shms.deployrabbitmq.Event.SendMessageEvent;
 import com.shms.deployrabbitmq.pojo.ChatMessage;
 import com.shms.deployrabbitmq.service.EventBusManager;
@@ -16,8 +13,6 @@ import javax.swing.text.StyledDocument;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.File;
 import java.net.URI;
 import java.util.UUID;
@@ -97,17 +92,16 @@ public class ChatWindow extends JFrame {
         // 构建消息
         ChatMessage msg = new ChatMessage();
         msg.setMessageId(UUID.randomUUID().toString());
-        msg.setType("message");
+        msg.setType("text");
         msg.setSender(sender);
         msg.setReceiver(receiver);
         msg.setContent(content);
         msg.setTimestamp(System.currentTimeMillis());
-
         // 发布发送事件
         eventBusManager.post(new SendMessageEvent(msg));
 
         // 本地显示
-        //appendMessage("我", content);
+        appendMessage(sender, content);
         messageField.setText("");
     }
 
@@ -139,7 +133,7 @@ public class ChatWindow extends JFrame {
             // 发送文件消息
             ChatMessage msg = new ChatMessage();
             msg.setMessageId(UUID.randomUUID().toString());
-            msg.setType("file");
+            msg.setType("text");
             msg.setSender(sender);
             msg.setReceiver(receiver);
             msg.setContent(selectedFile.getName());
@@ -147,6 +141,7 @@ public class ChatWindow extends JFrame {
             msg.setTimestamp(System.currentTimeMillis());
 
             eventBusManager.post(new SendMessageEvent(msg));
+
             appendSystemMessage("文件已发送: " + selectedFile.getName());
             fileField.setText("");
             selectedFile = null;
@@ -156,30 +151,30 @@ public class ChatWindow extends JFrame {
         }
     }
 
-    // 处理私人消息
-    @Subscribe
-    public void onPrivateMessage(PrivateMessageEvent event) {
-        ChatMessage msg = event.getMessage();
-        // 只处理发给当前聊天对象的消息
-        if (msg.getReceiver().equals(sender) && msg.getSender().equals(receiver)) {
-            handleMessage(msg);
-        }
-    }
+//    // 处理私人消息
+//    @Subscribe
+//    public void onPrivateMessage(PrivateMessageEvent event) {
+//        ChatMessage msg = event.getMessage();
+//        // 只处理发给当前聊天对象的消息
+//        if (msg.getReceiver().equals(sender) && msg.getSender().equals(receiver)) {
+//            handleMessage(msg);
+//        }
+//    }
 
     // 处理群聊消息
-    @Subscribe
-    public void onPublicMessage(PublicMessageEvent event) {
-        ChatMessage msg = event.getMessage();
-        // 群聊窗口才处理
-        if ("all".equals(receiver) && msg.getReceiver().equals("all")) {
-            handleMessage(msg);
-        }
-    }
+//    @Subscribe
+//    public void onPublicMessage(PublicMessageEvent event) {
+//        ChatMessage msg = event.getMessage();
+//        // 群聊窗口才处理
+//        if ("all".equals(receiver) && msg.getReceiver().equals("all")) {
+//            handleMessage(msg);
+//        }
+//    }
 
     // 统一处理消息显示
     void handleMessage(ChatMessage msg) {
         SwingUtilities.invokeLater(() -> {
-            if ("file".equals(msg.getType())) {
+            if (msg.getFileUrl()!=null) {
                 appendFileMessage(msg.getSender(), msg.getContent(), msg.getFileUrl());
             } else {
                 appendMessage(msg.getSender(), msg.getContent());
@@ -265,6 +260,24 @@ public class ChatWindow extends JFrame {
     }
 
     // 下载文件
+//    private void downloadFile(String fileUrl, String fileName) {
+//        JFileChooser fileChooser = new JFileChooser();
+//        fileChooser.setSelectedFile(new File(fileName));
+//        int result = fileChooser.showSaveDialog(this);
+//        if (result != JFileChooser.APPROVE_OPTION) return;
+//
+//        File saveFile = fileChooser.getSelectedFile();
+//        new Thread(() -> {
+//            try {
+//                chatService.downloadFile(new URI(fileUrl), saveFile);
+//                SwingUtilities.invokeLater(() -> appendSystemMessage("文件已保存: " + saveFile.getAbsolutePath()));
+//            } catch (Exception e) {
+//                log.error("文件下载失败", e);
+//                SwingUtilities.invokeLater(() -> appendSystemMessage("文件下载失败"));
+//            }
+//        }).start();
+//    }
+
     private void downloadFile(String fileUrl, String fileName) {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setSelectedFile(new File(fileName));
@@ -275,13 +288,89 @@ public class ChatWindow extends JFrame {
         new Thread(() -> {
             try {
                 chatService.downloadFile(new URI(fileUrl), saveFile);
-                SwingUtilities.invokeLater(() -> appendSystemMessage("文件已保存: " + saveFile.getAbsolutePath()));
+                // 下载成功弹窗
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this,
+                            "文件已保存: " + saveFile.getAbsolutePath(),
+                            "下载成功",
+                            JOptionPane.INFORMATION_MESSAGE);
+                    appendSystemMessage("文件已保存: " + saveFile.getAbsolutePath());
+                });
             } catch (Exception e) {
                 log.error("文件下载失败", e);
-                SwingUtilities.invokeLater(() -> appendSystemMessage("文件下载失败"));
+                // 下载失败弹窗
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this,
+                            "文件下载失败: " + e.getMessage(),
+                            "下载失败",
+                            JOptionPane.ERROR_MESSAGE);
+                    appendSystemMessage("文件下载失败");
+                });
             }
         }).start();
     }
+
+
+//    private void appendFileMessage(String sender, String fileName, String fileUrl) {
+//        StyledDocument doc = chatArea.getStyledDocument();
+//        try {
+//            // 插入文件名称文本
+//            doc.insertString(doc.getLength(), sender + ": " + fileName + " ", null);
+//
+//            // 创建下载按钮（持久存在）
+//            JButton downloadBtn = new JButton("下载");
+//            downloadBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+//
+//            // 防止重复点击
+//            downloadBtn.addActionListener(e -> {
+//                downloadBtn.setEnabled(false);
+//                downloadBtn.setText("下载中...");
+//                new Thread(() -> {
+//                    try {
+//                        downloadFile(fileUrl, fileName);
+//                        SwingUtilities.invokeLater(() -> {
+//                            downloadBtn.setText("已下载");
+//                            JOptionPane.showMessageDialog(
+//                                    chatArea,
+//                                    "文件已成功保存到本地！",
+//                                    "下载完成",
+//                                    JOptionPane.INFORMATION_MESSAGE
+//                            );
+//                        });
+//                    } catch (Exception ex) {
+//                        SwingUtilities.invokeLater(() -> {
+//                            downloadBtn.setEnabled(true);
+//                            downloadBtn.setText("下载");
+//                            JOptionPane.showMessageDialog(
+//                                    chatArea,
+//                                    "文件下载失败：" + ex.getMessage(),
+//                                    "错误",
+//                                    JOptionPane.ERROR_MESSAGE
+//                            );
+//                        });
+//                    }
+//                }).start();
+//            });
+//
+//            // 插入按钮（不会被自动移除）
+//            chatArea.insertComponent(downloadBtn);
+//            doc.insertString(doc.getLength(), "\n", null);
+//            chatArea.setCaretPosition(doc.getLength());
+//        } catch (BadLocationException e) {
+//            log.error("文件消息显示失败", e);
+//        }
+//    }
+
+    // 下载文件方法（保持原样，但不再内部弹窗）
+//    private void downloadFile(String fileUrl, String fileName) throws Exception {
+//        JFileChooser fileChooser = new JFileChooser();
+//        fileChooser.setSelectedFile(new File(fileName));
+//        int result = fileChooser.showSaveDialog(this);
+//        if (result != JFileChooser.APPROVE_OPTION) return;
+//
+//        File saveFile = fileChooser.getSelectedFile();
+//        chatService.downloadFile(new URI(fileUrl), saveFile);
+//    }
 
     // 添加窗口关闭监听器
     public void addWindowListener(Runnable onClose) {

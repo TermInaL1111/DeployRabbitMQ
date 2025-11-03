@@ -4,7 +4,7 @@ package com.shms.deployrabbitmq.ui;
 import com.shms.deployrabbitmq.pojo.Result;
 import com.shms.deployrabbitmq.pojo.User;
 import com.shms.deployrabbitmq.service.EventBusManager;
-import com.shms.deployrabbitmq.service.ChatMessageListener;
+
 import com.shms.deployrabbitmq.service.ChatService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +22,7 @@ public class LoginFrame extends JFrame {
     private final EventBusManager eventBusManager;
     private final ChatService chatService;
 
-    private final ChatMessageListener chatMessageListener;
+//    private final ChatMessageListener chatMessageListener;
 
     // UI组件
     private JTextField hostField;
@@ -37,10 +37,10 @@ public class LoginFrame extends JFrame {
     private String serverUrl;
 
     @Autowired
-    public LoginFrame(EventBusManager eventBusManager, ChatService chatService, ChatMessageListener chatMessageListener) {
+    public LoginFrame(EventBusManager eventBusManager, ChatService chatService) {
         this.eventBusManager = eventBusManager;
         this.chatService = chatService;
-        this.chatMessageListener = chatMessageListener;
+//        this.chatMessageListener = chatMessageListener;
         initUI();
         setTitle("登录 - jMessenger");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -53,37 +53,22 @@ public class LoginFrame extends JFrame {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
-//        // 主机地址
-//        gbc.gridx = 0;
-//        gbc.gridy = 0;
-//        panel.add(new JLabel("主机地址:"), gbc);
-//        gbc.gridx = 1;
-//        hostField = new JTextField("localhost", 20);
-//        panel.add(hostField, gbc);
-//
-//        // 端口
-//        gbc.gridx = 0;
-//        gbc.gridy = 1;
-//        panel.add(new JLabel("端口:"), gbc);
-//        gbc.gridx = 1;
-//        portField = new JTextField("8090", 20);
-//        panel.add(portField, gbc);
 
-        // 连接按钮
-        gbc.gridx = 2;
-        gbc.gridy = 0;
-        gbc.gridheight = 2;
-        connectBtn = new JButton("连接服务器");
-        connectBtn.addActionListener(e -> testConnection());
-        panel.add(connectBtn, gbc);
-        gbc.gridheight = 1;
+//        // 连接按钮
+//        gbc.gridx = 2;
+//        gbc.gridy = 0;
+//        gbc.gridheight = 2;
+//        connectBtn = new JButton("连接服务器");
+//        connectBtn.addActionListener(e -> testConnection());
+//        panel.add(connectBtn, gbc);
+//        gbc.gridheight = 1;
 
         // 用户名
         gbc.gridx = 0;
         gbc.gridy = 2;
         panel.add(new JLabel("用户名:"), gbc);
         gbc.gridx = 1;
-        usernameField = new JTextField("Anurag", 20);
+        usernameField = new JTextField("", 20);
         panel.add(usernameField, gbc);
 
         // 密码
@@ -91,7 +76,7 @@ public class LoginFrame extends JFrame {
         gbc.gridy = 3;
         panel.add(new JLabel("密码:"), gbc);
         gbc.gridx = 1;
-        passwordField = new JPasswordField("password", 20);
+        passwordField = new JPasswordField("", 20);
         panel.add(passwordField, gbc);
 
         // 登录/注册按钮
@@ -111,19 +96,21 @@ public class LoginFrame extends JFrame {
     }
 
     // 测试服务器连接
-    private void testConnection() {
-      //  String host = hostField.getText();
-     //   String port = portField.getText();
-    ///    serverUrl = "http://" + host + ":" + port + "/user";
-
-        try {
-            User testUser = new User();
-            Result result = chatService.testConnection(serverUrl, testUser);
-            JOptionPane.showMessageDialog(this, "服务器连接成功");
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "服务器连接失败: " + e.getMessage());
-        }
-    }
+//    private void testConnection() {
+//      //  String host = hostField.getText();
+//     //   String port = portField.getText();
+//    ///    serverUrl = "http://" + host + ":" + port + "/user";
+//
+//        try {
+//            User testUser = new User();
+//            Result result = chatService.testConnection( testUser);
+//            if(result.getCode().equals(1)) {
+//                JOptionPane.showMessageDialog(this, "服务器连接成功");
+//            }
+//        } catch (Exception e) {
+//            JOptionPane.showMessageDialog(this, "服务器连接失败: " + e.getMessage());
+//        }
+//    }
 
     // 登录处理
     private void doLogin() {
@@ -135,21 +122,15 @@ public class LoginFrame extends JFrame {
         }
 
         try {
-            // 调用登录接口
-            Result result = chatService.login(serverUrl, new User(username, password));
-            if (result.getCode() == 1 ) {
-                // 启动消息监听
-                chatMessageListener.startPrivateMessageListener(username);
-                chatMessageListener.startPublicMessageListener(username);
-                chatMessageListener.startUserStatusListener(username);
-
-                // 发送上线状态
-                chatService.sendOnlineStatus(username, eventBusManager);
+            Result result = chatService.login(new User(username, password));
+            if (result.getCode() == 1) {
+                // 登录成功 → 初始化 WebSocket
+                chatService.initWebSocketForUser(username);
 
                 // 打开主界面
-                MainFrame mainFrame = new MainFrame(username, eventBusManager, chatService,chatMessageListener);
+                MainFrame mainFrame = new MainFrame(username, eventBusManager, chatService);
                 mainFrame.setVisible(true);
-                this.dispose(); // 关闭登录窗口
+                this.dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "登录失败: " + result.getMsg());
             }
@@ -169,7 +150,7 @@ public class LoginFrame extends JFrame {
         }
 
         try {
-            Result result = chatService.register(serverUrl, new User(username, password));
+            Result result = chatService.register( new User(username, password));
             JOptionPane.showMessageDialog(this, result.getMsg());
         } catch (Exception e) {
             log.error("注册失败", e);
